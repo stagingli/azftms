@@ -1,18 +1,22 @@
 name: Build
+
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     types: [opened, synchronize, reopened]
+
 jobs:
   sonarqube:
     name: SonarQube
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+          fetch-depth: 0  # Shallow clones should be disabled for eine bessere Analyse-Relevanz
+
       - name: SonarQube Scan
         uses: SonarSource/sonarqube-scan-action@v5
         env:
