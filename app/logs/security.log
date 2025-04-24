@@ -1,0 +1,12 @@
+{"timestamp":"2025-04-22 10:04:14","level":"INFO","message":"🔄 Log geleert: security.log","ip":"82.144.38.202","session_id":"917802d3ef287d134ee9954ea26eeb56","uri":"/admin/log_viewer.php"}
+{"timestamp":"2025-04-22 17:27:48","level":"INFO","message":"Login-Versuch von IP 80.187.126.42","ip":"80.187.126.42","session_id":"fd5e839ba07916192cb5fcdd3c68c257","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:33:57","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:33:57","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:33:57","level":"SECURITY","message":"⚠️ CSRF-Fehlversuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:34:08","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:34:08","level":"SECURITY","message":"⚠️ CSRF-Fehlversuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:34:30","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"b3db5c54e9efaf02f24db6df66efbc0a","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:55:14","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"f561c4b3c617d6498cb33f9fb31defd7","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 07:55:14","level":"SECURITY","message":"⚠️ CSRF-Fehlversuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"f561c4b3c617d6498cb33f9fb31defd7","uri":"/auth/login.php"}
+{"timestamp":"2025-04-23 09:50:15","level":"INFO","message":"Login-Versuch von IP 82.144.38.202","ip":"82.144.38.202","session_id":"9a9028193dfc97b9b97b2cdaa9487d4c","uri":"/auth/login.php"}
+{"timestamp":"2025-04-24 07:37:59","level":"INFO","message":"Login-Versuch von IP 80.187.127.38","ip":"80.187.127.38","session_id":"049271772eaa7e939302f91a377e2029","uri":"/auth/login.php"}

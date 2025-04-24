@@ -1,0 +1,62 @@
+footer.footer {
+    color: white;
+    text-align: center;
+    padding: 1rem 0;
+    margin-top: 2rem !important; /* Abstand nach oben */
+  }
+  
+  footer.footer .container {
+    max-width: 1140px; 
+    margin: 0 auto;
+    padding: 0 15px;
+  }
+  
+  footer.footer a {
+    color: white;
+    text-decoration: none;
+  }
+  
+  footer.footer a:hover {
+    text-decoration: underline;
+  }
+  
+
+  /* Im Hauptstilblatt - body und html auf volle Höhe setzen */
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Der Hauptcontainer sollte den verfügbaren Platz ausfüllen */
+.container {
+  flex: 1 0 auto; /* Erlaubt dem Container zu wachsen, aber nicht zu schrumpfen */
+}
+
+/* Footer-Stil */
+footer.footer {
+  flex-shrink: 0; /* Verhindert, dass der Footer schrumpft */
+  color: white;
+  text-align: center;
+  padding: 1rem 0;
+  background-color: #333; /* oder deine gewünschte Farbe */
+}
+
+footer.footer .container {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 15px;
+}
+
+footer.footer a {
+  color: white;
+  text-decoration: none;
+}
+
+footer.footer a:hover {
+  text-decoration: underline;
+}

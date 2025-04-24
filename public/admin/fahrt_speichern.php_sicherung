@@ -1,0 +1,349 @@
+<?php
+require __DIR__ . '/../../app/config.php';
+
+// Eigenes Debug-Log definieren
+$debug_log = __DIR__ . '/../../app/logs/fahrt_speichern_debug.log';
+if (!is_dir(dirname($debug_log))) mkdir(dirname($debug_log), 0777, true);
+function debug_log($message, $data = null) {
+    global $debug_log;
+    $log_entry = date('Y-m-d H:i:s') . " - $message";
+    if ($data !== null) $log_entry .= "\n" . print_r($data, true);
+    $log_entry .= "\n--------------------------------------------------\n";
+    file_put_contents($debug_log, $log_entry, FILE_APPEND);
+}
+
+debug_log("Fahrt speichern gestartet", $_POST);
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    debug_log("Keine POST-Anfrage - Umleitung");
+    $_SESSION['alert_type'] = 'warning';
+    $_SESSION['alert_icon'] = 'exclamation-triangle';
+    $_SESSION['alert_msg'] = 'Ungültige Anfrage. Bitte verwenden Sie das Fahrtformular.';
+    header("Location: fahrten_liste.php");
+    exit();
+}
+
+if (!isset($_POST['csrf_token']) || $_POST['csrf_token'] !== $_SESSION['csrf_token']) {
+    debug_log("Ungültiger CSRF-Token", $_POST['csrf_token'] ?? 'nicht gesetzt');
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_icon'] = 'shield-exclamation';
+    $_SESSION['alert_msg'] = 'Sicherheitsfehler: Ungültiger CSRF-Token. Bitte laden Sie die Seite neu.';
+    header("Location: fahrten_liste.php");
+    exit();
+}
+
+try {
+    $id = $_POST['id'] ?? null;
+    $isZyklus = isset($_POST['zyklus_aktivieren']) && $_POST['zyklus_aktivieren'] === '1';
+    debug_log("Verarbeite Fahrt", ["id" => $id, "isZyklus" => $isZyklus]);
+
+    // Filtere und bereite alle Eingaben vor
+    $felder = [
+        'kunde_id'           => FILTER_VALIDATE_INT,
+        'abholdatum'         => FILTER_SANITIZE_SPECIAL_CHARS,
+        'abfahrtszeit'       => FILTER_SANITIZE_SPECIAL_CHARS,
+        'fahrer'             => FILTER_VALIDATE_INT,
+        'fahrzeug'           => FILTER_VALIDATE_INT,
+        'abholort'           => FILTER_VALIDATE_INT,
+        'ziel'               => FILTER_VALIDATE_INT,
+        'zahlungsmethode'    => FILTER_VALIDATE_INT,
+        'flugnummer'         => FILTER_SANITIZE_SPECIAL_CHARS,
+        'fahrtpreis'         => FILTER_VALIDATE_FLOAT,
+        'personenanzahl'     => FILTER_VALIDATE_INT,
+        'dispo_bemerkung'    => FILTER_SANITIZE_SPECIAL_CHARS,
+        'rechnungsnummer'    => FILTER_SANITIZE_SPECIAL_CHARS,
+        'hinfahrt_id'        => FILTER_VALIDATE_INT
+    ];
+    $daten = filter_input_array(INPUT_POST, $felder);
+    debug_log("Gefilterte Daten", $daten);
+    $daten['zusatzequipment'] = isset($_POST['zusatzequipment']) ? json_encode($_POST['zusatzequipment']) : null;
+
+    // Formatierung der Abfahrtszeit (z. B. 2100 → 21:00)
+    if (!empty($daten['abfahrtszeit'])) {
+        if (preg_match('/^\d{4}$/', $daten['abfahrtszeit'])) {
+            // Konvertiere HHmm in HH:mm
+            $stunden = substr($daten['abfahrtszeit'], 0, 2);
+            $minuten = substr($daten['abfahrtszeit'], 2, 2);
+            $daten['abfahrtszeit'] = "$stunden:$minuten";
+        } elseif (preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $daten['abfahrtszeit'])) {
+            // Entferne Sekunden, falls vorhanden (z. B. 21:00:00 → 21:00)
+            $daten['abfahrtszeit'] = substr($daten['abfahrtszeit'], 0, 5);
+        } else {
+            throw new Exception("Ungültiges Format für Abfahrtszeit. Bitte im Format HH:mm eingeben.");
+        }
+    }
+    debug_log("Verarbeitete Abfahrtszeit", $daten['abfahrtszeit']);
+
+    // Formatierung des Abholdatums (z. B. 31.12.2023 → 2023-12-31)
+    if (!empty($daten['abholdatum'])) {
+        $datumTeile = explode('.', $daten['abholdatum']);
+        if (count($datumTeile) === 3) {
+            // Konvertiere d.m.Y in Y-m-d
+            $daten['abholdatum'] = "{$datumTeile[2]}-{$datumTeile[1]}-{$datumTeile[0]}";
+        } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $daten['abholdatum'])) {
+            throw new Exception("Ungültiges Format für Abholdatum. Bitte im Format d.m.Y eingeben.");
+        }
+    } else {
+        throw new Exception("Abholdatum ist erforderlich.");
+    }
+
+    // Debugging
+    debug_log("Eingereichtes Abholdatum", $_POST['abholdatum']);
+    debug_log("Verarbeitetes Abholdatum", $daten['abholdatum']);
+
+    // Zusätzliche Parameter für den Zyklus (Wiederholung)
+    $zyklus_typ = $_POST['zyklus_typ'] ?? null;
+    $zyklus_anzahl = isset($_POST['zyklus_anzahl']) ? intval($_POST['zyklus_anzahl']) : 0;
+    $zyklus_wochentage = isset($_POST['zyklus_wochentage']) ? $_POST['zyklus_wochentage'] : [];
+
+    // Serverseitige Prüfung: Falls "Hamburg Airport" als Abhol- oder Zielort gewählt ist, muss eine Flugnummer angegeben werden
+    $stmtAirport = $pdo->prepare("SELECT id, wert FROM einstellungen WHERE id IN (?, ?)");
+    $stmtAirport->execute([$daten['abholort'], $daten['ziel']]);
+    $orte = $stmtAirport->fetchAll(PDO::FETCH_ASSOC);
+    $airportInvolved = false;
+    foreach ($orte as $ort) {
+        if ($ort['wert'] === 'Hamburg Airport') {
+            $airportInvolved = true; // Korrigiert von false zu true
+            break;
+        }
+    }
+    if ($airportInvolved && empty(trim($daten['flugnummer']))) {
+        throw new Exception("Flugnummer ist erforderlich, wenn Hamburg Airport als Abholort oder Ziel ausgewählt ist.");
+    }
+
+    // Korrekte Fehlerüberprüfung für Pflichtfelder
+    $errors = [];
+    $pflichtfelder = ['kunde_id', 'abholdatum', 'abfahrtszeit', 'fahrer', 'fahrzeug', 'abholort', 'ziel', 'zahlungsmethode'];
+    foreach ($pflichtfelder as $feld) {
+        if (empty($daten[$feld])) {
+            $errors[$feld] = 'Pflichtfeld fehlt';
+        }
+    }
+
+    if (!empty($errors)) {
+        debug_log("Pflichtfelder fehlen", $errors);
+        $_SESSION['form_errors'] = $errors;
+        $_SESSION['form_data'] = $_POST;
+        $_SESSION['alert_type'] = 'danger';
+        $_SESSION['alert_icon'] = 'exclamation-triangle';
+        $_SESSION['alert_msg'] = 'Bitte alle Pflichtfelder ausfüllen.';
+        header("Location: fahrt_formular.php" . ($id ? "?id=$id" : ''));
+        exit();
+    }
+
+    // Überprüfe, ob Fremdschlüssel existieren
+    $checkParams = [
+        ['tabelle' => 'kunden', 'spalte' => 'id', 'wert' => $daten['kunde_id'], 'fehler' => 'Kunde nicht gefunden'],
+        ['tabelle' => 'nutzer', 'spalte' => 'id', 'wert' => $daten['fahrer'], 'fehler' => 'Fahrer nicht gefunden'],
+        ['tabelle' => 'einstellungen', 'spalte' => 'id', 'wert' => $daten['fahrzeug'], 'fehler' => 'Fahrzeug nicht gefunden'],
+        ['tabelle' => 'einstellungen', 'spalte' => 'id', 'wert' => $daten['abholort'], 'fehler' => 'Abholort nicht gefunden'],
+        ['tabelle' => 'einstellungen', 'spalte' => 'id', 'wert' => $daten['ziel'], 'fehler' => 'Ziel nicht gefunden'],
+        ['tabelle' => 'einstellungen', 'spalte' => 'id', 'wert' => $daten['zahlungsmethode'], 'fehler' => 'Zahlungsmethode nicht gefunden']
+    ];
+    debug_log("Überprüfe Fremdschlüssel");
+    foreach ($checkParams as $check) {
+        if (empty($check['wert'])) continue;
+        
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM {$check['tabelle']} WHERE {$check['spalte']} = ?");
+        $stmt->execute([$check['wert']]);
+        $count = $stmt->fetchColumn();
+        
+        debug_log("Prüfe {$check['tabelle']} mit ID {$check['wert']}", "Ergebnis: $count");
+        
+        if ($count === 0) {
+            throw new Exception($check['fehler'] . " (ID: {$check['wert']})");
+        }
+    }
+
+    // Zusätzlich: Kategorien für Einstellungen prüfen
+    $kategoriePruefungen = [
+        ['id' => $daten['abholort'], 'erwartete_kategorie' => 'ort', 'fehler' => 'Abholort hat falsche Kategorie'],
+        ['id' => $daten['ziel'], 'erwartete_kategorie' => 'ort', 'fehler' => 'Ziel hat falsche Kategorie'],
+        ['id' => $daten['fahrzeug'], 'erwartete_kategorie' => 'fahrzeug', 'fehler' => 'Fahrzeug hat falsche Kategorie'],
+        ['id' => $daten['zahlungsmethode'], 'erwartete_kategorie' => 'zahlungsmethode', 'fehler' => 'Zahlungsmethode hat falsche Kategorie']
+    ];
+    foreach ($kategoriePruefungen as $pruefung) {
+        if (empty($pruefung['id'])) continue;
+        
+        $stmt = $pdo->prepare("SELECT kategorie FROM einstellungen WHERE id = ?");
+        $stmt->execute([$pruefung['id']]);
+        $kategorie = $stmt->fetchColumn();
+        
+        debug_log("Prüfe Kategorie für ID {$pruefung['id']}", "Ergebnis: $kategorie, Erwartet: {$pruefung['erwartete_kategorie']}");
+        
+        if ($kategorie !== $pruefung['erwartete_kategorie']) {
+            throw new Exception($pruefung['fehler'] . " (ID: {$pruefung['id']})");
+        }
+    }
+
+    // Prüfe hinfahrt_id speziell
+    if (!empty($daten['hinfahrt_id'])) {
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM fahrten WHERE id = ?");
+        $stmt->execute([$daten['hinfahrt_id']]);
+        $count = $stmt->fetchColumn();
+        
+        debug_log("Prüfe hinfahrt_id {$daten['hinfahrt_id']}", "Ergebnis: $count");
+        
+        if ($count === 0) {
+            throw new Exception("Die angegebene Hinfahrt (ID: {$daten['hinfahrt_id']}) existiert nicht.");
+        }
+    }
+
+    // Prüfe, ob es sich um eine Rückfahrt handelt, und passe den Preis an
+    if (!empty($daten['hinfahrt_id'])) {
+        // Lade den ursprünglichen Fahrpreis der Hinfahrt aus der Datenbank
+        $stmt = $pdo->prepare("SELECT fahrtpreis FROM fahrten WHERE id = ?");
+        $stmt->execute([$daten['hinfahrt_id']]);
+        $originalPrice = $stmt->fetchColumn();
+
+        // Nur anpassen, wenn der Preis noch nicht erhöht wurde
+        if ($originalPrice !== false && abs($daten['fahrtpreis'] - $originalPrice) < 0.01) {
+            debug_log("Rückfahrt erkannt, passe Fahrpreis an", ["hinfahrt_id" => $daten['hinfahrt_id'], "aktueller Preis" => $daten['fahrtpreis']]);
+            $daten['fahrtpreis'] += 5; // 5 Euro für Rückfahrten hinzufügen
+            debug_log("Neuer Fahrpreis für Rückfahrt", $daten['fahrtpreis']);
+        } else {
+            debug_log("Fahrpreis wurde bereits angepasst oder keine gültige ID gefunden", ["hinfahrt_id" => $daten['hinfahrt_id'], "aktueller Preis" => $daten['fahrtpreis']]);
+        }
+    }
+
+    // Prüfe, ob der Kunde ein Firmenkunde ist
+    $stmtKunde = $pdo->prepare("SELECT kundentyp, firmenname, firmenanschrift FROM kunden WHERE id = ?");
+    $stmtKunde->execute([$daten['kunde_id']]);
+    $kunde = $stmtKunde->fetch(PDO::FETCH_ASSOC);
+
+    if (!$kunde) {
+        throw new Exception("Der ausgewählte Kunde existiert nicht.");
+    }
+
+    if ($kunde['kundentyp'] === 'firma') {
+        // Zusätzliche Validierung für Firmenkunden
+        if (empty($kunde['firmenname'])) {
+            throw new Exception("Firmenname ist erforderlich für Firmenkunden.");
+        }
+        if (empty($kunde['firmenanschrift'])) {
+            throw new Exception("Firmenanschrift ist erforderlich für Firmenkunden.");
+        }
+
+        // Automatische Generierung einer Rechnungsnummer für Firmenkunden
+        if (empty($daten['rechnungsnummer'])) {
+            $daten['rechnungsnummer'] = 'RE-' . strtoupper(uniqid());
+            debug_log("Rechnungsnummer für Firmenkunde generiert", $daten['rechnungsnummer']);
+        }
+    }
+
+    // SQL-Teil für UPDATE/INSERT
+    $sql_common = "kunde_id = :kunde_id,
+                abholdatum = :abholdatum,
+                abfahrtszeit = :abfahrtszeit,
+                fahrer_id = :fahrer,
+                fahrzeug_id = :fahrzeug,
+                ort_start_id = :abholort,
+                ort_ziel_id = :ziel,
+                zahlungsmethode_id = :zahlungsmethode,
+                flugnummer = :flugnummer,
+                fahrtpreis = :fahrtpreis,
+                personenanzahl = :personenanzahl,
+                dispo_bemerkung = :dispo_bemerkung,
+                rechnungsnummer = :rechnungsnummer,
+                zusatzequipment = :zusatzequipment,
+                hinfahrt_id = :hinfahrt_id";
+
+    if ($id) {
+        // Aktualisierung einer bestehenden Fahrt
+        debug_log("Aktualisiere bestehende Fahrt", ["id" => $id]);
+        $params = $daten;
+        $params[':id'] = $id;
+        $stmt = $pdo->prepare("UPDATE fahrten SET $sql_common WHERE id = :id");
+        $stmt->execute($params);
+        debug_log("Fahrt erfolgreich aktualisiert");
+        $_SESSION['alert_type'] = 'success';
+        $_SESSION['alert_icon'] = 'check-circle';
+        $_SESSION['alert_msg'] = 'Fahrt aktualisiert (ID: ' . $id . ').';
+    } elseif ($isZyklus) {
+        // Mehrfacheinträge erstellen (Wiederholung)
+        debug_log("Erstelle Fahrten im Zyklus", ["zyklus_typ" => $zyklus_typ, "zyklus_anzahl" => $zyklus_anzahl, "wochentage" => $zyklus_wochentage]);
+        // Zunächst: Hauptfahrt einfügen
+        $params = $daten;
+        $stmt = $pdo->prepare("INSERT INTO fahrten SET $sql_common, erstellt_am = NOW()");
+        $stmt->execute($params);
+        $mainId = $pdo->lastInsertId();
+        debug_log("Hauptfahrt erstellt", ["id" => $mainId]);
+        
+        // Zusätzliche Fahrten berechnen:
+        $additionalDates = [];
+        $mainDate = $daten['abholdatum']; // Ursprungsdatum der Hauptfahrt
+        
+        if ($zyklus_typ === 'taeglich') {
+            for ($i = 1; $i <= $zyklus_anzahl; $i++) {
+                $additionalDates[] = date('Y-m-d', strtotime("$mainDate +$i days"));
+            }
+        } elseif ($zyklus_typ === 'monatlich') {
+            for ($i = 1; $i <= $zyklus_anzahl; $i++) {
+                $additionalDates[] = date('Y-m-d', strtotime("$mainDate +$i months"));
+            }
+        } elseif ($zyklus_typ === 'woechentlich') {
+            if (!empty($zyklus_wochentage)) {
+                // Starte ab dem Tag nach mainDate und sammle so lange, bis die Anzahl erreicht ist
+                $count = 0;
+                $currentDate = strtotime($mainDate . ' +1 day');
+                while ($count < $zyklus_anzahl) {
+                    // Wochentag (1 = Mo, 7 = So)
+                    $dayOfWeek = date('N', $currentDate);
+                    if (in_array($dayOfWeek, $zyklus_wochentage)) {
+                        $additionalDates[] = date('Y-m-d', $currentDate);
+                        $count++;
+                    }
+                    $currentDate = strtotime('+1 day', $currentDate);
+                }
+            } else {
+                // Fallback: einfache wöchentliche Wiederholung (7-Tage-Intervall)
+                for ($i = 1; $i <= $zyklus_anzahl; $i++) {
+                    $additionalDates[] = date('Y-m-d', strtotime("$mainDate +" . ($i * 7) . " days"));
+                }
+            }
+        }
+        
+        debug_log("Berechnete Zusatztermine", $additionalDates);
+        $stmtInsert = $pdo->prepare("INSERT INTO fahrten SET $sql_common, erstellt_am = NOW()");
+        foreach ($additionalDates as $date) {
+            $params['abholdatum'] = $date; // Überschreibe Datum
+            $stmtInsert->execute($params);
+        }
+        $_SESSION['alert_type'] = 'success';
+        $_SESSION['alert_icon'] = 'sync';
+        $_SESSION['alert_msg'] = "Wiederholungsfahrten erstellt (Hauptfahrt ID: $mainId, zusätzliche Fahrten: " . count($additionalDates) . ").";
+    } else {
+        // Normale Neuerstellung einer Fahrt
+        $params = $daten;
+        $stmt = $pdo->prepare("INSERT INTO fahrten SET $sql_common, erstellt_am = NOW()");
+        $stmt->execute($params);
+        $newId = $pdo->lastInsertId();
+        debug_log("Neue Fahrt erstellt", ["id" => $newId]);
+        $_SESSION['alert_type'] = 'success';
+        $_SESSION['alert_icon'] = $daten['hinfahrt_id'] ? 'exchange-alt' : 'check-circle';
+        $_SESSION['alert_msg'] = $daten['hinfahrt_id'] ? "Rückfahrt erstellt (ID: $newId)." : "Neue Fahrt gespeichert (ID: $newId).";
+    }
+
+    // Weiterleitung
+    $return = isset($_POST['return']) && !empty($_POST['return']) 
+        ? $_POST['return'] 
+        : "fahrt_formular.php?id=" . ($newId ?? $mainId ?? $id);
+
+    debug_log("Weiterleitung zu", $return);
+    header("Location: $return");
+    exit();
+
+} catch (Exception $e) {
+    debug_log("Fehler beim Speichern der Fahrt", [
+        "message" => $e->getMessage(),
+        "file" => $e->getFile(),
+        "line" => $e->getLine(),
+        "trace" => $e->getTraceAsString()
+    ]);
+    $_SESSION['alert_type'] = 'danger';
+    $_SESSION['alert_icon'] = 'exclamation-circle';
+    $_SESSION['alert_msg'] = 'Fehler beim Speichern: ' . $e->getMessage();
+    $_SESSION['form_data'] = $_POST;
+    header("Location: fahrt_formular.php" . ($id ? "?id=$id" : ''));
+    exit();
+}

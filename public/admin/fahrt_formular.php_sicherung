@@ -1,0 +1,1151 @@
+<?php
+// Starte die Session, falls sie nicht bereits gestartet wurde
+if (session_status() === PHP_SESSION_NONE) {
+  session_start();
+}
+
+// Starte Output Buffering, um Weiterleitungen zu ermöglichen
+ob_start();
+
+// Einbinden der Konfiguration, Rechte und Header
+require __DIR__ . '/../../app/config.php';
+require __DIR__ . '/../../app/permissions.php';
+require __DIR__ . '/../assets/header.php';
+
+if (isset($_POST['personenanzahl'])) {
+    $personenanzahl = (int)$_POST['personenanzahl'];
+    if ($personenanzahl < 1 || $personenanzahl > 8) {
+        die('Die Personenanzahl muss zwischen 1 und 8 liegen.');
+    }
+}
+
+  // Abfrage der notwendigen Daten
+  // Orte (Kategorie "ort")
+  $sql = "SELECT id, wert FROM einstellungen WHERE kategorie = 'ort' ORDER BY wert ASC";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $orte = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  // Kunden laden
+  $sql = "SELECT id, kundennummer, vorname, nachname, strasse, hausnummer, plz, ort, kundentyp, firmenname, firmenanschrift, bemerkung FROM kunden WHERE deleted_at IS NULL ORDER BY nachname, vorname";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $kunden = $stmt->fetchAll(PDO::FETCH_ASSOC);
+  $kundenJSON = json_encode($kunden);
+
+  // Zahlungsmethoden laden
+  $sql = "SELECT id, wert FROM einstellungen WHERE kategorie = 'zahlungsmethode' ORDER BY wert ASC";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $zahlungsmethoden = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  // Fahrzeuge laden
+  $sql = "SELECT id, wert FROM einstellungen WHERE kategorie = 'fahrzeug' ORDER BY wert ASC";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $fahrzeuge = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  // Fahrer laden
+  $sql = "SELECT n.id, n.name FROM nutzer n 
+          JOIN nutzer_rolle nr ON n.id = nr.nutzer_id 
+          JOIN rollen r ON nr.rolle_id = r.id 
+          WHERE r.name = 'fahrer' 
+          ORDER BY n.name ASC";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $fahrerList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  // Zusatzequipment laden
+  $sql = "SELECT id, wert FROM einstellungen WHERE kategorie = 'zusatzequipment' ORDER BY wert ASC";
+  $stmt = $pdo->prepare($sql);
+  $stmt->execute();
+  $equipmentList = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+  // Standardwerte initialisieren (ggf. aus POST bzw. GET oder aus der DB, falls bearbeitet wird)
+  $kunde_id           = $_GET['kunde_id'] ?? '';
+  $abholdatum         = $_GET['abholdatum'] ?? ''; // ACHTUNG: Bei Bearbeitung darf hier der DB-Wert stehen, nicht automatisch heute setzen!
+  $abfahrtszeit       = $_GET['abfahrtszeit'] ?? '';
+  $abholort           = $_GET['abholort'] ?? '';
+  $ziel               = $_GET['ziel'] ?? '';
+  $flugnummer         = $_GET['flugnummer'] ?? '';
+  $fahrtpreis         = $_GET['fahrtpreis'] ?? '';
+  $personenanzahl     = $_GET['personenanzahl'] ?? '';
+  $dispo_bemerkung    = $_GET['dispo_bemerkung'] ?? '';
+  $zahlungsmethode_id = $_GET['zahlungsmethode'] ?? '';
+  $rechnungsnummer    = $_GET['rechnungsnummer'] ?? '';
+  $fahrer_id          = $_GET['fahrer'] ?? '';
+  $fahrzeug_id        = $_GET['fahrzeug'] ?? '';
+  $zusatzequipment    = isset($_GET['zusatzequipment']) ? $_GET['zusatzequipment'] : [];
+  $kundeData          = null;
+  $hinfahrt_id        = null;
+  $hinfahrt_preis     = null;
+
+  // Drehen-Modus (für Rückfahrt)
+  $is_drehen_modus = isset($_GET['drehen']) && !empty($_GET['id']);
+  $title = $is_drehen_modus ? 'Rückfahrt erstellen' : (isset($_GET['id']) ? 'Fahrt bearbeiten' : 'Fahrt erstellen');
+
+  // Falls eine Fahrt bearbeitet (oder gedreht) werden soll, lade die Daten
+  if (!empty($_GET['id'])) {
+      $fahrt_id = $_GET['id'];
+      $stmt = $pdo->prepare("SELECT * FROM fahrten WHERE id = ?");
+      $stmt->execute([$fahrt_id]);
+      $fahrt = $stmt->fetch(PDO::FETCH_ASSOC);
+      if ($fahrt) {
+          $kunde_id           = $fahrt['kunde_id'];
+          $abholdatum         = $fahrt['abholdatum']; // Datum aus der Datenbank
+          $abfahrtszeit       = $fahrt['abfahrtszeit'];
+          $abholort           = $fahrt['ort_start_id'];
+          $ziel               = $fahrt['ort_ziel_id'];
+          $flugnummer         = $fahrt['flugnummer'];
+          $fahrtpreis         = $fahrt['fahrtpreis'];
+          $personenanzahl     = $fahrt['personenanzahl'];
+          $dispo_bemerkung    = $fahrt['dispo_bemerkung'];
+          $zahlungsmethode_id = $fahrt['zahlungsmethode_id'];
+          $rechnungsnummer    = $fahrt['rechnungsnummer'] ?? '';
+          $fahrer_id          = $fahrt['fahrer_id'];
+          $fahrzeug_id        = $fahrt['fahrzeug_id'];
+          if (!empty($fahrt['zusatzequipment'])) {
+              $zusatzequipment = json_decode($fahrt['zusatzequipment'], true) ?? [];
+          }
+          if ($is_drehen_modus) {
+              $hinfahrt_id = $fahrt_id;
+              // Orte tauschen
+              $temp = $abholort;
+              $abholort = $ziel;
+              $ziel = $temp;
+              // Datum und Zeit leeren
+              $abholdatum = '';
+              $abfahrtszeit = '';
+              // Rechnungsnummer zurücksetzen
+              $rechnungsnummer = '';
+              // Fahrtpreis der Hinfahrt speichern für Rückfahrtsaufschlag
+              $hinfahrt_preis = $fahrtpreis;
+          }
+      }
+      if (!empty($fahrt['abholdatum'])) {
+          $abholdatum = date('d.m.Y', strtotime($fahrt['abholdatum']));
+      }
+  }
+
+  // Falls Kunde ausgewählt, lade Kundendaten
+  if (!empty($kunde_id) && empty($kundeData)) {
+      $stmt = $pdo->prepare("SELECT * FROM kunden WHERE id = ?");
+      $stmt->execute([$kunde_id]);
+      $kundeData = $stmt->fetch(PDO::FETCH_ASSOC);
+      if ($kundeData) {
+          $kundeName = trim($kundeData['vorname'] . ' ' . $kundeData['nachname']);
+          if ($kundeData['kundentyp'] === 'firma' && !empty($kundeData['firmenname'])) {
+              $kundeName = $kundeData['firmenname'];
+          }
+      }
+  } else {
+      $kundeName = '';
+  }
+
+  // Entferne Sekunden aus der Abfahrtszeit, falls vorhanden
+  if (!empty($abfahrtszeit) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $abfahrtszeit)) {
+      $abfahrtszeit = substr($abfahrtszeit, 0, 5);
+  }
+
+  ?>
+
+  <div class="container my-4">
+    <div class="card shadow-lg border-0">
+      <div class="card-header bg-primary text-white">
+        <h2 class="mb-0 py-2">
+          <i class="fas fa-car me-2"></i> <?= htmlspecialchars($title) ?>
+        </h2>
+      </div>
+      <div class="card-body bg-light">
+        <!-- Systemnachrichten (falls vorhanden) -->
+        <?php if (isset($_SESSION['msg'])): ?>
+          <div class="alert alert-warning alert-dismissible fade show">
+            <?= htmlspecialchars($_SESSION['msg']) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+          </div>
+          <?php unset($_SESSION['msg']); ?>
+        <?php endif; ?>
+
+        <!-- Fehler anzeigen -->
+        <?php if (isset($_SESSION['alert_msg'])): ?>
+          <div class="alert alert-<?= $_SESSION['alert_type'] ?? 'warning' ?> alert-dismissible fade show">
+            <i class="fas fa-<?= $_SESSION['alert_icon'] ?? 'info-circle' ?> me-2"></i>
+            <?= htmlspecialchars($_SESSION['alert_msg']) ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+          </div>
+          <?php 
+            unset($_SESSION['alert_msg']);
+            unset($_SESSION['alert_type']);
+            unset($_SESSION['alert_icon']);
+          ?>
+        <?php endif; ?>
+
+        <form id="fahrtenForm" action="fahrt_speichern.php" method="POST">
+          <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?>">
+          <input type="hidden" name="typ" value="normal">
+          <?php if (isset($_GET['return'])): ?>
+            <input type="hidden" name="return" value="<?= htmlspecialchars($_GET['return']) ?>">
+          <?php endif; ?>
+          <?php if (isset($_GET['id']) && !empty($_GET['id']) && !$is_drehen_modus): ?>
+            <input type="hidden" name="id" value="<?= htmlspecialchars($_GET['id']) ?>">
+          <?php endif; ?>
+          <?php if ($is_drehen_modus): ?>
+            <input type="hidden" name="hinfahrt_id" value="<?= htmlspecialchars($hinfahrt_id) ?>">
+            <div class="alert alert-info mb-4">
+              <i class="fas fa-exchange-alt me-2"></i> Sie erstellen eine Rückfahrt zur Fahrt #<?= htmlspecialchars($hinfahrt_id) ?>. Start- und Zielort wurden getauscht.
+              <strong>Hinweis:</strong> Für Rückfahrten wird automatisch ein Aufschlag von 5,00 € berechnet.
+            </div>
+          <?php endif; ?>
+
+          <!-- KUNDENDATEN -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-user me-2"></i> Kundendaten</h5>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-12 position-relative">
+                  <label for="kunde" class="form-label fw-bold">Kunde *</label>
+                  <div class="input-group">
+                    <input type="text" id="kunde" name="kunde" autocomplete="off" class="form-control" value="<?= htmlspecialchars($kundeName) ?>">
+                    <input type="hidden" id="kunde_id" name="kunde_id" value="<?= htmlspecialchars($kunde_id) ?>">
+                    <button type="button" id="btnNeuerKunde" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#kundenModal">
+                      <i class="fas fa-plus me-1"></i> Neuer Kunde
+                    </button>
+                  </div>
+                  <div id="kundeList" class="autocomplete-suggestions"></div>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-12">
+                  <label for="kundenbemerkung" class="form-label">Bemerkung Kunde</label>
+                  <textarea id="kundenbemerkung" class="form-control" rows="2" readonly><?= isset($kundeData['bemerkung']) ? htmlspecialchars($kundeData['bemerkung']) : '' ?></textarea>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label for="personenanzahl" class="form-label">Personenanzahl</label>
+                  <input type="number" id="personenanzahl" name="personenanzahl" class="form-control" value="<?= htmlspecialchars($personenanzahl) ?>" min="1" max="8" required>
+                </div>
+                <div class="col-md-4">
+                  <label for="fahrtpreis" class="form-label fw-bold">Fahrtpreis *</label>
+                  <input type="number" step="0.01" id="fahrtpreis" name="fahrtpreis" class="form-control" value="<?= htmlspecialchars($fahrtpreis) ?>">
+                  <?php if ($is_drehen_modus && !empty($hinfahrt_preis)): ?>
+                  <small class="form-text text-muted">Hinfahrtpreis: <?= number_format($hinfahrt_preis, 2, ',', '.') ?> € (zzgl. 5,00 € Aufschlag)</small>
+                  <?php endif; ?>
+                </div>
+                <div class="col-md-4">
+                  <label for="zahlungsmethode" class="form-label fw-bold">Zahlungsmethode *</label>
+                  <select id="zahlungsmethode" name="zahlungsmethode" class="form-select" required>
+                    <option value="">Bitte wählen</option>
+                    <?php 
+                      foreach ($zahlungsmethoden as $zm):
+                        // Wenn bereits eine Zahlungsmethode gesetzt ist, wähle diese aus.
+                        // Falls nicht, setze "EC/Rechnung" als Standard.
+                        $selected = (!empty($zahlungsmethode_id) && $zm['id'] == $zahlungsmethode_id) 
+                                    ? 'selected' 
+                                    : ((empty($zahlungsmethode_id) && $zm['wert'] == 'EC/Rechnung') ? 'selected' : '');
+                    ?>
+                      <option value="<?= htmlspecialchars($zm['id']); ?>" <?= $selected; ?>>
+                        <?= htmlspecialchars($zm['wert']); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-md-12">
+                  <label for="rechnungsnummer" class="form-label">Rechnungsnummer</label>
+                  <input type="text" id="rechnungsnummer" name="rechnungsnummer" class="form-control" value="<?= htmlspecialchars($rechnungsnummer) ?>">
+                  <div id="rechnungsnummerHinweis"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- FAHRTINFORMATIONEN -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-route me-2"></i> Fahrtinformationen</h5>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-3">
+                  <label for="abholdatum" class="form-label fw-bold">Abholdatum *</label>
+                  <input type="text" id="abholdatum" name="abholdatum" class="form-control" value="<?= htmlspecialchars($abholdatum) ?>" required>
+                  <small id="wochentagAnzeige" class="form-text text-muted"></small>
+                </div>
+                <div class="col-md-3">
+                  <label for="abholzeit" class="form-label fw-bold">Abfahrtszeit *</label>
+                  <input type="text" id="abholzeit" name="abfahrtszeit" class="form-control" value="<?= htmlspecialchars($abfahrtszeit) ?>" required>
+                  <small class="form-text text-muted">Format HH:mm / HHmm</small>
+                </div>
+                <div class="col-md-3">
+                  <label for="abholort" class="form-label fw-bold">Abholort *</label>
+                  <select id="abholort" name="abholort" class="form-select" onchange="updateStrecke()" required>
+                    <option value="">Bitte wählen</option>
+                    <?php foreach ($orte as $ort): ?>
+                      <option value="<?= htmlspecialchars($ort['id']); ?>" data-name="<?= htmlspecialchars($ort['wert']); ?>" <?= ($ort['id'] == $abholort) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($ort['wert']); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+                <div class="col-md-3">
+                  <label for="ziel" class="form-label fw-bold">Ziel *</label>
+                  <select id="ziel" name="ziel" class="form-select" onchange="updateStrecke()" required>
+                    <option value="">Bitte wählen</option>
+                    <?php foreach ($orte as $ort): ?>
+                      <option value="<?= htmlspecialchars($ort['id']); ?>" data-name="<?= htmlspecialchars($ort['wert']); ?>" <?= ($ort['id'] == $ziel) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($ort['wert']); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+              <div class="row mb-3" id="flugnummerRow" style="display: none;">
+                <div class="col-md-12">
+                  <label for="flugnummer" class="form-label fw-bold">Flugnummer</label>
+                  <input type="text" id="flugnummer" name="flugnummer" class="form-control" value="<?= htmlspecialchars($flugnummer) ?>">
+                  <small class="form-text text-info">Die Flugnummer ist optional.</small>
+                </div>
+              </div>
+              <div class="row mb-3">
+                <div class="col-12">
+                  <div class="fahrtanzeiger">
+                    <h6 class="fahrtanzeiger-title">Fahrstrecke</h6>
+                    <div id="streckenAnzeige" class="py-2 text-center">
+                      <span class="text-muted">Bitte wählen Sie Abholort und Ziel</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- DISPOSITIONSDATEN -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-truck me-2"></i> Dispositionsdaten</h5>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <!-- Fahrer -->
+                <div class="col-md-6">
+                  <label for="fahrer" class="form-label fw-bold">Fahrer *</label>
+                  <select id="fahrer" name="fahrer" class="form-select" required>
+                    <option value="">Wähle Fahrer</option>
+                    <?php foreach ($fahrerList as $fahrer):
+                        // Prüfe, ob für das gewählte Abholdatum ein Eintrag in der Fahrer-Verfügbarkeit existiert
+                        $isAbsent = false;
+                        $isPattern = false;
+                        $absenceReason = '';
+                        if (!empty($abholdatum) && isset($absencesByDriver[$fahrer['id']])) {
+                          $absEntry = $absencesByDriver[$fahrer['id']];
+                          $isAbsent = ($absEntry['typ'] === 'nicht_verfuegbar');
+                          $absenceReason = ucfirst($absEntry['typ']);
+                          // Falls ein Musterwert vorliegt, prüfen wir zusätzlich auf ein Flag
+                          $isPattern = (isset($absEntry['ist_muster']) && $absEntry['ist_muster'] == 1);
+                        }
+                        $optionClass = $isAbsent ? 'text-danger fw-bold' : 'text-success';
+                        $selected = ($fahrer['id'] == $fahrer_id) ? 'selected' : '';
+                        $displayName = htmlspecialchars($fahrer['name']);
+                        if ($isAbsent) {
+                          $displayName .= ' ⚠️ ' . $absenceReason;
+                          if ($isPattern) {
+                            $displayName .= ' (zyklisch)';
+                          }
+                        }
+                    ?>
+                      <option value="<?= htmlspecialchars($fahrer['id']); ?>"
+                        class="<?= $optionClass ?>"
+                        <?= $selected ?>
+                        data-absent="<?= $isAbsent ? '1' : '0' ?>"
+                        data-reason="<?= htmlspecialchars($absenceReason) ?>"
+                        data-pattern="<?= $isPattern ? '1' : '0' ?>">
+                        <?= $displayName ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                  <div id="fahrerAbwesenheitsWarnung" class="alert alert-danger mt-2 d-none">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <span id="abwesenheitsText">Der ausgewählte Fahrer ist abwesend.</span>
+                  </div>
+                </div>
+                <!-- Fahrzeug -->
+                <div class="col-md-6">
+                  <label for="fahrzeug" class="form-label fw-bold">Fahrzeug *</label>
+                  <select id="fahrzeug" name="fahrzeug" class="form-select" required>
+                    <option value="">Wähle Fahrzeug</option>
+                    <?php foreach ($fahrzeuge as $fzg): ?>
+                      <option value="<?= htmlspecialchars($fzg['id']); ?>" <?= ($fzg['id'] == $fahrzeug_id) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($fzg['wert']); ?>
+                      </option>
+                    <?php endforeach; ?>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- ZUSATZINFORMATIONEN -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-clipboard-list me-2"></i> Zusatzinformationen</h5>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-4">
+                  <label class="form-label">Zusatzequipment</label>
+                  <?php foreach ($equipmentList as $eq): ?>
+                    <div class="form-check">
+                      <input class="form-check-input" type="checkbox" name="zusatzequipment[]" value="<?= htmlspecialchars($eq['wert']); ?>" id="eq<?= $eq['id']; ?>" <?= in_array($eq['wert'], $zusatzequipment) ? 'checked' : '' ?>>
+                      <label class="form-check-label" for="eq<?= $eq['id']; ?>">
+                        <?= htmlspecialchars($eq['wert']); ?>
+                      </label>
+                    </div>
+                  <?php endforeach; ?>
+                </div>
+                <div class="col-md-8">
+                  <label for="dispo_bemerkung" class="form-label">Bemerkung Dispo</label>
+                  <textarea id="dispo_bemerkung" name="dispo_bemerkung" class="form-control" rows="4"><?= htmlspecialchars($dispo_bemerkung) ?></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- WIEDERHOLUNGSOPTIONEN (Zyklische Fahrten) -->
+          <div class="card mb-4">
+            <div class="card-header bg-light">
+              <h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i> Wiederholung</h5>
+            </div>
+            <div class="card-body">
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" value="1" id="zyklus_aktivieren" name="zyklus_aktivieren">
+                <label class="form-check-label" for="zyklus_aktivieren">
+                  Diese Fahrt wiederholen
+                </label>
+              </div>
+              <div id="zyklusOptionen" class="mt-3" style="display: none;">
+                <div class="row">
+                  <div class="col-md-4">
+                    <label for="zyklus_typ" class="form-label">Wiederholungstyp</label>
+                    <select id="zyklus_typ" name="zyklus_typ" class="form-select">
+                      <option value="taeglich">Täglich</option>
+                      <option value="woechentlich" selected>Wöchentlich</option>
+                      <option value="monatlich">Monatlich</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <label for="zyklus_anzahl" class="form-label">Anzahl Wiederholungen</label>
+                    <input type="number" class="form-control" id="zyklus_anzahl" name="zyklus_anzahl" value="4" min="1" max="52">
+                  </div>
+                  <div class="col-md-4">
+                    <label for="zyklus_vorschau" class="form-label">Vorschau</label>
+                    <div id="zyklus_vorschau" class="form-control bg-light">
+                      <em>Bitte wählen Sie die Optionen</em>
+                    </div>
+                  </div>
+                </div>
+                <div class="row mt-3" id="zyklus_wochentag_gruppe">
+                  <div class="col-12">
+                    <label class="form-label">Wochentage (nur bei wöchentlicher Wiederholung)</label>
+                    <div class="btn-group" role="group">
+                      <?php 
+                        $wochentage = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+                        foreach ($wochentage as $index => $tag):
+                      ?>
+                        <input type="checkbox" class="btn-check" name="zyklus_wochentage[]" id="wochentag<?= $index ?>" value="<?= $index + 1 ?>" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="wochentag<?= $index ?>"><?= $tag ?></label>
+                      <?php endforeach; ?>
+                    </div>
+                  </div>
+                </div>
+                <div class="alert alert-info mt-3 small">
+                  <i class="fas fa-info-circle me-2"></i>
+                  <strong>Hinweis:</strong> Die Wiederholungen werden als separate Fahrten gespeichert.
+                </div>
+              </div>
+            </div>
+          </div>
+          <hr class="my-4">
+          <div class="d-flex justify-content-between">
+            <a href="<?= isset($_GET['return']) ? htmlspecialchars($_GET['return']) : 'fahrten_liste.php' ?>" class="btn btn-secondary">
+              <i class="fas fa-arrow-left me-2"></i> Zurück
+            </a>
+            <button type="submit" name="action" value="save" class="btn btn-success px-4">
+              <i class="fas fa-save me-2"></i> Fahrt speichern
+            </button>
+          </div>
+        </form>
+      </div>
+      <div class="card-footer text-muted">
+        <small>Alle Pflichtfelder sind mit * gekennzeichnet</small>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Neuer Kunde -->
+  <div class="modal fade" id="kundenModal" tabindex="-1" aria-labelledby="kundenModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="kundenModalLabel">Neuer Kunde</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+        </div>
+        <div class="modal-body" id="kundenModalBody">
+          <p>Lade Formular...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Kunden-Daten für JavaScript -->
+  <script>
+  const kundenDaten = <?= $kundenJSON ?>;
+  <?php if (isset($kundeData) && $kundeData): ?>
+  document.addEventListener('DOMContentLoaded', function() {
+      window.aktuellerKunde = <?= json_encode($kundeData) ?>;
+      setTimeout(updateStrecke, 100);
+  });
+  <?php else: ?>
+  document.addEventListener('DOMContentLoaded', function() {
+      window.aktuellerKunde = null;
+  });
+  <?php endif; ?>
+  </script>
+
+  <script>
+  $(document).ready(function() {
+      // Fallback falls aktueller Kunde nicht gesetzt ist
+      if (typeof window.aktuellerKunde === 'undefined') {
+          window.aktuellerKunde = null;
+      }
+
+      // Formularvalidierung
+      $('#fahrtenForm').on('submit', function(event) {
+          // Prüfe, ob ein Kunde ausgewählt wurde
+          if (!$('#kunde_id').val()) {
+              alert('Bitte wählen Sie einen Kunden aus.');
+              $('#kunde').focus();
+              event.preventDefault();
+              return false;
+          }
+
+          // Prüfe Firmenkunden-Anforderungen
+          if (window.aktuellerKunde && window.aktuellerKunde.kundentyp === 'firma') {
+              if (!window.aktuellerKunde.firmenname) {
+                  alert('Fehler: Firmenname ist erforderlich für Firmenkunden.');
+                  event.preventDefault();
+                  return false;
+              }
+              if (!window.aktuellerKunde.firmenanschrift) {
+                  alert('Fehler: Firmenanschrift ist erforderlich für Firmenkunden.');
+                  event.preventDefault();
+                  return false;
+              }
+          } 
+
+
+
+          return true;
+      });
+
+      // Kundensuche (Autocomplete)
+      let typingTimer;
+      const doneTypingInterval = 300; // Wartezeit in ms
+
+      $('#kunde').on('keyup', function () {
+          clearTimeout(typingTimer);
+          const query = $(this).val().trim();
+
+          if (query.length > 2) {
+              $('#kundeList').html('<div class="p-2 text-muted">Lade...</div>').fadeIn();
+              typingTimer = setTimeout(function () {
+                  $.ajax({
+                      url: 'kunden_suche_ajax.php',
+                      method: 'GET',
+                      data: { term: query },
+                      dataType: 'json',
+                      success: function (data) {
+                          $('#kundeList').fadeIn().html('');
+                          if (data.error) {
+                              $('#kundeList').html('<div class="p-2 text-danger">' + data.error + '</div>');
+                          } else if (data.length === 0) {
+                              $('#kundeList').html('<div class="p-2 text-muted">Keine Ergebnisse gefunden</div>');
+                          } else {
+                              data.forEach(function (item) {
+                                  $('#kundeList').append(
+                                      '<div class="autocomplete-suggestion" data-id="' + item.id +
+                                      '" data-kundendata=\'' + JSON.stringify(item) + '\'>' +
+                                      item.label +
+                                      '</div>'
+                                  );
+                              });
+                          }
+                      },
+                      error: function (xhr, status, error) {
+                          $('#kundeList').fadeIn().html('<div class="p-2 text-danger">Fehler bei der Kundensuche: ' + error + '</div>');
+                      }
+                  });
+              }, doneTypingInterval);
+          } else {
+              $('#kundeList').fadeOut();
+          }
+      });
+
+      // Auswahl aus Autocomplete
+      $(document).on('click', '.autocomplete-suggestion', function () {
+          const kundenId = $(this).data('id');
+          const kundenData = $(this).data('kundendata');
+          $('#kunde').val($(this).text());
+          $('#kunde_id').val(kundenId);
+          window.aktuellerKunde = kundenData;
+
+          // Kundendaten in das Formular übernehmen
+          if (kundenData && 'bemerkung' in kundenData) {
+              $('#kundenbemerkung').val(kundenData.bemerkung || '');
+          } else {
+              $('#kundenbemerkung').val('');
+          }
+
+          // Für Firmenkunden
+          if (kundenData && kundenData.kundentyp === 'firma') {
+              if (!$('#rechnungsnummer').val()) {
+                  $('#rechnungsnummerHinweis').html('<small class="text-info">Beim Speichern wird automatisch eine Rechnungsnummer generiert.</small>');
+              }
+          } else {
+              $('#rechnungsnummerHinweis').html('');
+          }
+
+          $('#kundeList').fadeOut();
+          updateStrecke(); // Strecke aktualisieren
+      });
+
+      // Modal: Neuer Kunde
+      $('#kundenModal').on('shown.bs.modal', function() {
+      $('#kundenModalBody').html(`
+          <div class="text-center">
+              <div class="spinner-border text-primary" role="status">
+                  <span class="visually-hidden">Lädt...</span>
+              </div>
+              <p class="mt-2">Formular wird geladen...</p>
+          </div>
+      `);
+      
+      // Verbesserte AJAX-Ladung mit besserer Fehlerbehandlung
+      $.ajax({
+          url: 'kunde_formular.php?modal=1',
+          method: 'GET',
+          success: function(response) {
+              $('#kundenModalBody').html(response);
+              
+              // Initialisiere das Formular im Modal-Kontext
+              if (typeof initKundenFormular === 'function') {
+                  setTimeout(function() {
+                      initKundenFormular();
+                  }, 100);
+              }
+              
+              // Event-Handler für das erfolgreiche Speichern eines Kunden
+              $(document).off('kundenFormular:gespeichert').on('kundenFormular:gespeichert', function(event, kundenData) {
+                  // Schließe das Modal
+                  $('#kundenModal').modal('hide');
+                  
+                  // Übernehme die Daten in das Hauptformular
+                  $('#kunde_id').val(kundenData.id);
+                  $('#kunde').val(kundenData.vorname + ' ' + kundenData.nachname);
+                  if (kundenData.kundentyp === 'firma' && kundenData.firmenname) {
+                      $('#kunde').val(kundenData.firmenname);
+                  }
+                  $('#kundenbemerkung').val(kundenData.bemerkung || '');
+                  
+                  // Aktualisiere den globalen Kunden-Objekt
+                  window.aktuellerKunde = kundenData;
+                  
+                  // Für Firmenkunden
+                  if (kundenData.kundentyp === 'firma') {
+                      if (!$('#rechnungsnummer').val()) {
+                          $('#rechnungsnummerHinweis').html('<small class="text-info">Beim Speichern wird automatisch eine Rechnungsnummer generiert.</small>');
+                      }
+                  } else {
+                      $('#rechnungsnummerHinweis').html('');
+                  }
+                  
+                  // Aktualisiere die Strecke
+                  updateStrecke();
+                  
+                  // Zeige eine Erfolgsmeldung
+                  showNotification('success', 'Kunde erfolgreich angelegt und ausgewählt');
+              });
+          },
+          error: function(xhr, status, error) {
+              $('#kundenModalBody').html(`
+                  <div class="alert alert-danger">
+                      <i class="fas fa-exclamation-triangle me-2"></i>
+                      Fehler beim Laden des Kundenformulars: ${error}
+                  </div>
+                  <button class="btn btn-primary" data-bs-dismiss="modal">Schließen</button>
+              `);
+          }
+      });
+  });
+
+  // Hilfsfunktion für Benachrichtigungen
+  function showNotification(type, message, timeout = 5000) {
+      const alertClass = `alert-${type}`;
+      const alertHtml = `
+          <div class="alert ${alertClass} alert-dismissible fade show">
+              ${message}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Schließen"></button>
+          </div>
+      `;
+      
+      // Füge die Benachrichtigung ein
+      const alertContainer = $('.alert-container');
+      if (alertContainer.length === 0) {
+          $('<div class="alert-container position-fixed top-0 end-0 p-3" style="z-index: 1050;"></div>').appendTo('body');
+      }
+      
+      const $alert = $(alertHtml).appendTo('.alert-container');
+      
+      // Automatisches Ausblenden nach timeout
+      setTimeout(() => {
+          $alert.alert('close');
+      }, timeout);
+  }
+
+  // Fahrer-Verfügbarkeit per AJAX laden
+  let lastDate = '';
+  let lastTime = '';
+
+  function ladeVerfuegbareFahrer() {
+      const selectedDate = $('#abholdatum').val();
+      const selectedTime = $('#abholzeit').val();
+
+      if (!selectedDate || !selectedTime || (selectedDate === lastDate && selectedTime === lastTime)) {
+          return;
+      }
+
+      lastDate = selectedDate;
+      lastTime = selectedTime;
+
+      $.ajax({
+          url: 'check_driver_availability.php',
+          method: 'GET',
+          data: {
+              date: selectedDate,
+              time: selectedTime
+          },
+          dataType: 'json',
+          success: function (fahrerListData) {
+              const $fahrerSelect = $('#fahrer');
+              $fahrerSelect.empty().append('<option value="">Wähle Fahrer</option>');
+              fahrerListData.forEach(fahrer => {
+                  const status = fahrer.status;
+                  const reason = fahrer.absenceReason || '';
+                  let statusText = '', optionClass = '';
+                  switch (status) {
+                      case 'available':
+                          statusText = ' ✅ verfügbar';
+                          optionClass = 'text-success';
+                          break;
+                      case 'absent':
+                          statusText = ' ⚠️ ' + reason;
+                          optionClass = 'text-danger fw-bold';
+                          break;
+                      case 'unknown':
+                          statusText = ' - Keine Info';
+                          optionClass = 'text-dark';
+                          break;
+                  }
+                  const option = $('<option>')
+                      .val(fahrer.id)
+                      .text(fahrer.name + statusText)
+                      .attr('data-status', status)
+                      .attr('data-reason', reason)
+                      .addClass(optionClass);
+                  $fahrerSelect.append(option);
+              });
+
+              checkDriverAbsence();
+          },
+          error: function (xhr, status, error) {
+              alert('Fehler beim Abrufen der Fahrer-Verfügbarkeit: ' + error);
+          }
+      });
+  }
+
+  // Prüfe Fahrer-Abwesenheit
+  function checkDriverAbsence() {
+      const fahrerSelect = document.getElementById('fahrer');
+      const warningDiv = document.getElementById('fahrerAbwesenheitsWarnung');
+      const warningText = document.getElementById('abwesenheitsText');
+      if (!fahrerSelect || !warningDiv || !warningText) return;
+      const selectedOption = fahrerSelect.options[fahrerSelect.selectedIndex];
+      if (!selectedOption || !selectedOption.value) {
+          warningDiv.classList.add('d-none');
+          return;
+      }
+      const status = selectedOption.getAttribute('data-status');
+      const reason = selectedOption.getAttribute('data-reason') || '';
+      if (status === 'absent') {
+          warningText.textContent = `Der ausgewählte Fahrer ist abwesend (${reason}).`;
+          warningDiv.classList.remove('d-none');
+      } else if (status === 'unknown') {
+          warningText.textContent = 'Für den ausgewählten Fahrer liegen keine Verfügbarkeitsinformationen vor.';
+          warningDiv.classList.remove('d-none');
+      } else {
+          warningDiv.classList.add('d-none');
+      }
+  }
+
+      // Event-Listener: Abholdatum und -zeit ändern
+      $('#abholdatum, #abholzeit').on('change', function() {
+          ladeVerfuegbareFahrer();
+          updateStrecke();
+      });
+      $('#fahrer').on('change', checkDriverAbsence);
+      checkDriverAbsence(); // Initiale Prüfung
+
+      // Zyklus-Optionen ein-/ausblenden und Vorschau aktualisieren
+      const zyklusCheck = document.getElementById('zyklus_aktivieren');
+      const zyklusOptionen = document.getElementById('zyklusOptionen');
+      if (zyklusCheck && zyklusOptionen) {
+          zyklusCheck.addEventListener('change', function() {
+              zyklusOptionen.style.display = this.checked ? 'block' : 'none';
+              updateZyklusVorschau();
+          });
+      }
+      const zyklusTyp = document.getElementById('zyklus_typ');
+      const wochentagGruppe = document.getElementById('zyklus_wochentag_gruppe');
+      if (zyklusTyp && wochentagGruppe) {
+          zyklusTyp.addEventListener('change', function() {
+              wochentagGruppe.style.display = (this.value === 'woechentlich') ? 'block' : 'none';
+              updateZyklusVorschau();
+          });
+      }
+      ['zyklus_typ','zyklus_anzahl','abholdatum'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', updateZyklusVorschau);
+      });
+
+      updateStrecke(); // Initiale Aktualisierung der Streckenanzeige
+  });
+
+  // Helper-Funktionen zur Adressformatierung
+  function formatKundenadresse(kunde) {
+      if (!kunde) return '<span class="text-danger">Keine Kundendaten vorhanden</span>';
+      const parts = [];
+      if (kunde.kundentyp === 'firma' && kunde.firmenname) {
+          parts.push('<strong>' + kunde.firmenname + '</strong>');
+      } else {
+          const name = [kunde.vorname, kunde.nachname].filter(Boolean).join(' ');
+          parts.push('<strong>' + name + '</strong>');
+      }
+      if (kunde.strasse || kunde.hausnummer) {
+          parts.push(`${kunde.strasse || ''} ${kunde.hausnummer || ''}`.trim());
+      }
+      if (kunde.plz || kunde.ort) {
+          parts.push(`${kunde.plz || ''} ${kunde.ort || ''}`.trim());
+      }
+      return parts.length > 0 ? parts.join('<br>') : '<span class="text-danger">Keine Adressdaten vorhanden</span>';
+  }
+
+  function formatFirmenadresse(kunde) {
+      if (!kunde) return '<span class="text-danger">Keine Kundendaten vorhanden</span>';
+      if (kunde.kundentyp !== 'firma' || !kunde.firmenname) {
+          return '<span class="text-danger">Keine Firmenadresse vorhanden</span>';
+      }
+      const parts = [];
+      parts.push('<strong>' + kunde.firmenname + '</strong>');
+      if (kunde.firmenanschrift) {
+          parts.push(kunde.firmenanschrift.replace(/\n/g, '<br>'));
+      } else {
+          parts.push('<span class="text-warning">Keine Firmenanschrift hinterlegt</span>');
+      }
+      return parts.join('<br>');
+  }
+
+  // Zyklus-Vorschau aktualisieren
+  function parseDate(dateString) {
+      const [day, month, year] = dateString.split('.');
+      return new Date(`${year}-${month}-${day}`);
+  }
+
+  function formatDate(date) {
+      return date.toLocaleDateString('de-DE', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric'
+      });
+  }
+
+  function updateZyklusVorschau() {
+      const vorschauElement = document.getElementById('zyklus_vorschau');
+      const abholdatum = document.getElementById('abholdatum').value;
+      const type = document.getElementById('zyklus_typ').value;
+      const anzahl = parseInt(document.getElementById('zyklus_anzahl').value || '0');
+      const wochentageCheckboxes = document.querySelectorAll('input[name="zyklus_wochentage[]"]:checked');
+
+      if (!abholdatum || !vorschauElement) {
+          vorschauElement.innerHTML = '<em>Keine Vorschau verfügbar</em>';
+          return;
+      }
+
+      const baseDate = parseDate(abholdatum);
+      if (isNaN(baseDate)) {
+          vorschauElement.innerHTML = '<em>Ungültiges Datum</em>';
+          return;
+      }
+
+      let vorschauDates = [];
+      if (type === 'woechentlich') {
+          const selectedDays = Array.from(wochentageCheckboxes).map(cb => parseInt(cb.value));
+          if (selectedDays.length === 0) {
+              vorschauElement.innerHTML = '<em>Bitte mindestens einen Wochentag auswählen</em>';
+              return;
+          }
+
+          let currentDate = new Date(baseDate);
+          while (vorschauDates.length < anzahl) {
+              currentDate.setDate(currentDate.getDate() + 1);
+              const currentDay = currentDate.getDay() === 0 ? 7 : currentDate.getDay();
+              if (selectedDays.includes(currentDay)) {
+                  vorschauDates.push(formatDate(currentDate));
+              }
+          }
+      } else {
+          for (let i = 1; i <= anzahl; i++) {
+              let nextDate = new Date(baseDate);
+              if (type === 'taeglich') {
+                  nextDate.setDate(baseDate.getDate() + i);
+              } else if (type === 'monatlich') {
+                  nextDate.setMonth(baseDate.getMonth() + i);
+              }
+              if (!isNaN(nextDate)) {
+                  vorschauDates.push(formatDate(nextDate));
+              }
+          }
+      }
+
+      vorschauElement.innerHTML = vorschauDates.length > 0
+          ? vorschauDates.join('<br>') + (anzahl > 5 ? '<br>...' : '')
+          : '<em>Keine Vorschau verfügbar</em>';
+  }
+
+  // Fahrtstreckenanzeige aktualisieren
+  function updateStrecke() {
+      const abholortOption = $('#abholort option:selected');
+      const zielOption = $('#ziel option:selected');
+      const abholortValue = abholortOption.val();
+      const zielValue = zielOption.val();
+      if (!abholortValue || !zielValue) {
+          $('#streckenAnzeige').html('<span class="text-muted">Bitte wählen Sie Abholort und Ziel</span>');
+          return;
+      }
+      let abholortText = '';
+      let zielText = '';
+      const abholortTyp = abholortOption.text().trim();
+      const zielTyp = zielOption.text().trim();
+      if (abholortTyp === 'Kundenadresse' || abholortTyp === 'Firmenanschrift') {
+          if (window.aktuellerKunde) {
+              abholortText = abholortTyp === 'Kundenadresse' ? formatKundenadresse(window.aktuellerKunde) : formatFirmenadresse(window.aktuellerKunde);
+          } else {
+              abholortText = '<span class="text-danger">Bitte erst einen Kunden auswählen</span>';
+          }
+      } else {
+          abholortText = abholortTyp;
+      }
+      if (zielTyp === 'Kundenadresse' || zielTyp === 'Firmenanschrift') {
+          if (window.aktuellerKunde) {
+              zielText = zielTyp === 'Kundenadresse' ? formatKundenadresse(window.aktuellerKunde) : formatFirmenadresse(window.aktuellerKunde);
+          } else {
+              zielText = '<span class="text-danger">Bitte erst einen Kunden auswählen</span>';
+          }
+      } else {
+          zielText = zielTyp;
+      }
+      $('#streckenAnzeige').html(`
+        <div class="d-flex align-items-center justify-content-center">
+          <div class="strecke-box border rounded p-2 bg-white">${abholortText}</div>
+          <div class="strecke-pfeil mx-3">
+            <i class="fas fa-long-arrow-alt-right fa-2x"></i>
+          </div>
+          <div class="strecke-box border rounded p-2 bg-white">${zielText}</div>
+        </div>
+      `);
+      // Falls "Hamburg Airport" involviert – zeige Flugnummerfeld
+      if (abholortOption.text().trim() === 'Hamburg Airport' || zielOption.text().trim() === 'Hamburg Airport') {
+          $('#flugnummerRow').show();
+      } else {
+          $('#flugnummerRow').hide();
+      }
+  };
+  </script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      // Flatpickr initialisieren
+      flatpickr('#abholdatum', {
+          dateFormat: 'd.m.Y',
+          altInput: true, // Benutzerfreundliches Eingabefeld
+          altFormat: 'd.m.Y',
+          defaultDate: '<?= htmlspecialchars($abholdatum) ?>',
+          locale: flatpickr.l10ns.de, // Deutsche Lokalisierung
+          onChange: function (selectedDates, dateStr, instance) {
+              const wochentagElement = document.getElementById('wochentagAnzeige');
+              if (selectedDates.length > 0) {
+                  const options = { weekday: 'long' };
+                  const wochentag = selectedDates[0].toLocaleDateString('de-DE', options);
+                  wochentagElement.textContent = `Ausgewählter Tag: ${wochentag}`;
+              } else {
+                  wochentagElement.textContent = '';
+              }
+          }
+      });
+  });
+
+  document.addEventListener('DOMContentLoaded', function () {
+    // Flatpickr initialisieren
+    flatpickr('#abholdatum', {
+        dateFormat: 'd.m.Y',
+        altInput: true,
+        altFormat: 'd.m.Y',
+        defaultDate: '<?= htmlspecialchars($abholdatum) ?>',
+        locale: flatpickr.l10ns.de,
+        onChange: function (selectedDates) {
+            const wochentagElement = document.getElementById('wochentagAnzeige');
+            if (selectedDates.length > 0) {
+                const options = { weekday: 'long' };
+                const wochentag = selectedDates[0].toLocaleDateString('de-DE', options);
+                wochentagElement.textContent = `Ausgewählter Tag: ${wochentag}`;
+            } else {
+                wochentagElement.textContent = '';
+            }
+        }
+    });
+
+    // Abholzeit-Validierung
+    const abholzeitInput = document.getElementById('abholzeit');
+    abholzeitInput.addEventListener('blur', function () {
+        let value = abholzeitInput.value.trim();
+        if (/^\d{4}$/.test(value)) {
+            const hours = value.substring(0, 2);
+            const minutes = value.substring(2, 4);
+            abholzeitInput.value = `${hours}:${minutes}`;
+        } else if (/^\d{2}:\d{2}$/.test(value)) {
+            abholzeitInput.value = value.substring(0, 5);
+        } else {
+            abholzeitInput.value = '';
+            alert('Bitte geben Sie die Zeit im Format HH:mm oder HHmm ein.');
+        }
+    });
+
+    // Zyklus-Optionen
+    const zyklusCheck = document.getElementById('zyklus_aktivieren');
+    const zyklusOptionen = document.getElementById('zyklusOptionen');
+    if (zyklusCheck && zyklusOptionen) {
+        zyklusCheck.addEventListener('change', function () {
+            zyklusOptionen.style.display = this.checked ? 'block' : 'none';
+            updateZyklusVorschau();
+        });
+    }
+
+    const zyklusTyp = document.getElementById('zyklus_typ');
+    const wochentagGruppe = document.getElementById('zyklus_wochentag_gruppe');
+    if (zyklusTyp && wochentagGruppe) {
+        zyklusTyp.addEventListener('change', function () {
+            wochentagGruppe.style.display = (this.value === 'woechentlich') ? 'block' : 'none';
+            updateZyklusVorschau();
+        });
+    }
+
+    ['zyklus_typ', 'zyklus_anzahl', 'abholdatum'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.addEventListener('change', updateZyklusVorschau);
+    });
+
+    updateZyklusVorschau(); // Initiale Aktualisierung der Vorschau
+});
+  </script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      const abholzeitInput = document.getElementById('abholzeit');
+
+      abholzeitInput.addEventListener('blur', function () {
+          let value = abholzeitInput.value.trim();
+
+          if (/^\d{4}$/.test(value)) {
+              const hours = value.substring(0, 2);
+              const minutes = value.substring(2, 4);
+              abholzeitInput.value = `${hours}:${minutes}`;
+          } else if (/^\d{2}:\d{2}$/.test(value)) {
+              abholzeitInput.value = value.substring(0, 5);
+          } else {
+              abholzeitInput.value = '';
+              alert('Bitte geben Sie die Zeit im Format HH:mm oder HHmm ein.');
+          }
+      });
+  });
+  </script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+      // Event-Listener für Wochentage hinzufügen
+      const wochentageCheckboxes = document.querySelectorAll('input[name="zyklus_wochentage[]"]');
+      wochentageCheckboxes.forEach(checkbox => {
+          checkbox.addEventListener('change', updateZyklusVorschau);
+      });
+
+      // Andere Event-Listener für Zyklus-Optionen
+      const zyklusCheck = document.getElementById('zyklus_aktivieren');
+      const zyklusOptionen = document.getElementById('zyklusOptionen');
+      if (zyklusCheck && zyklusOptionen) {
+          zyklusCheck.addEventListener('change', function () {
+              zyklusOptionen.style.display = this.checked ? 'block' : 'none';
+              updateZyklusVorschau();
+          });
+      }
+
+      const zyklusTyp = document.getElementById('zyklus_typ');
+      const wochentagGruppe = document.getElementById('zyklus_wochentag_gruppe');
+      if (zyklusTyp && wochentagGruppe) {
+          zyklusTyp.addEventListener('change', function () {
+              wochentagGruppe.style.display = (this.value === 'woechentlich') ? 'block' : 'none';
+              updateZyklusVorschau();
+          });
+      }
+
+      ['zyklus_typ', 'zyklus_anzahl', 'abholdatum'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el) el.addEventListener('change', updateZyklusVorschau);
+      });
+
+      updateZyklusVorschau(); // Initiale Aktualisierung der Vorschau
+  });
+  </script>
+
+  <script>
+  document.addEventListener('DOMContentLoaded', function () {
+  const personenanzahlInput = document.getElementById('personenanzahl');
+
+  personenanzahlInput.addEventListener('input', function () {
+    const value = parseInt(this.value, 10);
+    if (value < 1) {
+      this.value = 1;
+    } else if (value > 8) {
+      this.value = 8;
+    }
+  });
+});
+  </script>
+
+  <!-- Flatpickr CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+  <!-- Flatpickr Hauptskript -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+  <!-- Deutsche Sprachdatei -->
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/de.js"></script>
+
+
+  <?php include __DIR__ . '/../assets/footer.php'; ?>

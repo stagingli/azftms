@@ -1,0 +1,133 @@
+<?php
+/**
+ * shared_fahrer_content.php
+ * 
+ * Gemeinsame Inhalte und Logik für Fahrer-Dashboard und Fahrtenübersicht.
+ * Diese Datei enthält den gemeinsamen Code, der von beiden Seiten benötigt wird.
+ * 
+ * Wird nach der Header-Einbindung, aber vor dem spezifischen Seiteninhalt eingebunden.
+ */
+
+// Berechtigungsprüfung: Nur Fahrer dürfen auf diese Seiten zugreifen
+if (!isset($_SESSION['user']) || !in_array('fahrer', $_SESSION['user']['rollen'])) {
+    header("Location: /auth/login.php");
+    exit;
+}
+
+// Fahrer-ID aus der Session
+$fahrer_id = $_SESSION['user']['id'] ?? 0;
+$user_name = $_SESSION['user']['name'] ?? 'Unbekannt';
+
+// Fahrer-Stundenlohn abrufen
+try {
+    $stmt = $pdo->prepare("SELECT stundenlohn FROM nutzer WHERE id = :id LIMIT 1");
+    $stmt->execute([':id' => $fahrer_id]);
+    $driverData = $stmt->fetch(PDO::FETCH_ASSOC);
+    $driverWage = $driverData ? floatval($driverData['stundenlohn']) : 0;
+    
+    if ($driverWage <= 0) {
+        $stmt = $pdo->prepare("SELECT wert FROM tms_einstellungen WHERE schluessel = 'mindest_stundenlohn' LIMIT 1");
+        $stmt->execute();
+        $setting = $stmt->fetch(PDO::FETCH_ASSOC);
+        $driverWage = $setting ? floatval($setting['wert']) : 12.82;
+    }
+} catch (Exception $e) {
+    $driverWage = 12.82; // Standard-Fallback
+}
+
+// Stundenlohn für JavaScript verfügbar machen
+echo '<script>const DRIVER_WAGE = ' . json_encode($driverWage) . ';</script>';
+
+// Aktuelles Datum
+$today = date('Y-m-d');
+
+// Filterparameter aus GET verarbeiten (gemeinsame Logik für beide Seiten)
+$filter = [];
+$filter['von_datum'] = $_GET['von_datum'] ?? ($current_page === 'dashboard' ? $today : date('Y-m-01'));
+$filter['bis_datum'] = $_GET['bis_datum'] ?? $today;
+if (isset($_GET['status'])) {
+    $filter['status'] = $_GET['status'];
+}
+if (isset($_GET['keine_zeiten'])) {
+    $filter['keine_zeiten'] = $_GET['keine_zeiten'] === '1';
+}
+
+// Fahrten abrufen (mit gemeinsamer Funktion)
+$fahrten_raw = getDriverRides($pdo, $fahrer_id, $filter);
+
+// Jede Fahrt für die Anzeige aufbereiten
+$fahrten = [];
+foreach ($fahrten_raw as $fahrt) {
+    $fahrten[] = prepareRideForDisplay($fahrt);
+}
+
+// Statistik berechnen (wird in beiden Ansichten verwendet)
+$stats = [
+    'totalFahrten'    => count($fahrten),
+    'totalLohn'       => 0,
+    'totalAusgaben'   => 0,
+    'totalAuszahlung' => 0,
+];
+foreach ($fahrten as $ride) {
+    $stats['totalLohn']       += $ride['lohn_fahrt_raw'];
+    $stats['totalAusgaben']   += $ride['ausgaben'];
+    $stats['totalAuszahlung'] += $ride['lohn_auszahlbetrag_raw'];
+}
+
+// Aufteilen in "heute" und "zukünftig" (für Dashboard)
+$aktuelle_fahrten = [];
+$future_fahrten = [];
+$past_fahrten = [];
+$next_fahrt = null;
+
+foreach ($fahrten as $ride) {
+    if ($ride['abholdatum_raw'] == $today) {
+        $aktuelle_fahrten[] = $ride;
+    } elseif ($ride['abholdatum_raw'] > $today) {
+        $future_fahrten[] = $ride;
+    } else {
+        $past_fahrten[] = $ride;
+    }
+}
+
+// Sortierung der Fahrten nach Datum und Zeit
+usort($aktuelle_fahrten, function($a, $b) {
+    return strcmp($a['abfahrtszeit_raw'], $b['abfahrtszeit_raw']);
+});
+
+usort($future_fahrten, function($a, $b) {
+    if ($a['abholdatum_raw'] == $b['abholdatum_raw']) {
+        return strcmp($a['abfahrtszeit_raw'], $b['abfahrtszeit_raw']);
+    }
+    return strcmp($a['abholdatum_raw'], $b['abholdatum_raw']);
+});
+
+// Bestimme die nächste Fahrt (erste anstehende Fahrt oder aktive Fahrt)
+$active_fahrt = null;
+$pending_fahrten = array_merge($aktuelle_fahrten, $future_fahrten);
+
+// Zuerst nach einer aktiven Fahrt suchen
+foreach ($pending_fahrten as $ride) {
+    if ($ride['ist_aktiv']) {
+        $active_fahrt = $ride;
+        break;
+    }
+}
+
+// Falls keine aktive Fahrt, dann die nächste anstehende Fahrt
+if (!$active_fahrt) {
+    foreach ($pending_fahrten as $ride) {
+        if (empty($ride['fahrzeit_bis'])) {
+            $next_fahrt = $ride;
+            break;
+        }
+    }
+} else {
+    $next_fahrt = $active_fahrt;
+}
+
+// Titel für die nächste Fahrt (Dashboard)
+$titleNextRide = "Nächste Fahrt";
+if ($next_fahrt && $next_fahrt['ist_aktiv']) {
+    $titleNextRide = "Aktuelle Fahrt";
+}

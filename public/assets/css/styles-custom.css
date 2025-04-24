@@ -1,0 +1,273 @@
+/* 
+ * admin_dashboard.css
+ * Verbesserte Kontraste für das Admin-Dashboard
+ */
+
+/* ================================
+   Admin-Dashboard Verbesserungen
+   ================================ */
+
+/* Basis-Textfarbe für den dunklen Hintergrund */
+body {
+    color: #e9ecef !important; /* Helles Grau für Text auf dunklem Hintergrund */
+}
+
+/* Überschriften besser hervorheben */
+h1, h2, h3, h4, h5, h6 {
+    color: #ffffff !important; /* Weiß für Überschriften */
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3); /* Leichter Schatten für bessere Lesbarkeit */
+}
+
+/* Admin-Dashboard Überschrift und Willkommenstext */
+#admin-dashboard-title, 
+.admin-welcome-text {
+    color: #ffffff !important;
+    margin-bottom: 1.5rem;
+}
+
+/* Verbesserte Lesbarkeit für Beschreibungstext */
+.admin-description {
+    color: #ced4da !important; /* Helleres Grau für bessere Lesbarkeit */
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+}
+
+/* Karten mit besseren Kontrasten */
+.card {
+    background-color: #2c3e50 !important; /* Dunkleres Blau statt fast-schwarz */
+    border: 1px solid #4a5568 !important; /* Hellerer Rahmen für bessere Abgrenzung */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Karten-Inhalte mit besserem Kontrast */
+.card-body, .card-content {
+    padding: 1.5rem !important;
+}
+
+/* Karten-Titel und Icons */
+.card-title, .card-icon {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.card-icon {
+    font-size: 1.5rem;
+    margin-right: 0.75rem;
+}
+
+/* Verbesserte Lesbarkeit für Karten-Text */
+.card-text, .card-description {
+    color: #ced4da !important; /* Helleres Grau für Text */
+    margin-bottom: 1.25rem;
+    line-height: 1.5;
+}
+
+/* Buttons im Admin-Bereich */
+.btn-primary, .admin-action-button {
+    background-color: #ec7c1e !important; /* Helleres Blau */
+    border-color: #ec7c1e !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    padding: 0.5rem 1.25rem !important;
+}
+
+.btn-primary:hover, .admin-action-button:hover {
+    background-color: #ec7c1e !important; /* Etwas dunkleres Blau beim Hover */
+    border-color: #ec7c1e !important;
+}
+
+.btn-secondary {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #ffffff !important;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268 !important;
+    border-color: #5a6268 !important;
+}
+
+.btn-danger, .btn-delete {
+    background-color: #e74c3c !important; /* Helleres Rot */
+    border-color: #e74c3c !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-danger:hover, .btn-delete:hover {
+    background-color: #c0392b !important;
+    border-color: #c0392b !important;
+}
+
+.btn-success, .btn-complete {
+    background-color: #2ecc71 !important; /* Helleres Grün */
+    border-color: #2ecc71 !important;
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.btn-success:hover, .btn-complete:hover {
+    background-color: #27ae60 !important;
+    border-color: #27ae60 !important;
+}
+
+/* Spezifische Verbesserungen für das Brainstorming & Ideen Panel */
+.brainstorming-container,
+.ideas-container {
+    background-color: #34495e !important; /* Etwas helleres Dunkelblau */
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.brainstorming-header,
+.ideas-header {
+    padding: 1rem;
+    border-bottom: 1px solid #4a5568;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+.brainstorming-icon,
+.idea-icon {
+    color: #e74c3c !important; /* Rotes Icon für bessere Sichtbarkeit */
+    font-size: 1.25rem;
+    margin-right: 0.5rem;
+}
+
+.idea-entry {
+    background-color: #2c3e50 !important; /* Dunkleres Hintergrundblau */
+    border: 1px solid #4a5568 !important;
+    border-radius: 0.5rem !important;
+    padding: 1rem !important;
+    margin-bottom: 1rem !important;
+}
+
+.idea-title {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+.idea-description {
+    color: #ced4da !important;
+}
+
+.idea-metadata {
+    color: #a0aec0 !important; /* Mittelgraue Farbe */
+    font-size: 0.875rem;
+}
+
+.idea-author {
+    color: #3498db !important; /* Blaue Farbe für den Autor */
+    font-weight: 500;
+}
+
+/* Tabs für offene/erledigte Einträge */
+.nav-tabs .nav-link {
+    color: #a0aec0 !important; /* Mittelgrau */
+    border: none;
+    padding: 0.75rem 1.25rem;
+    font-weight: 500;
+}
+
+.nav-tabs .nav-link.active {
+    color: #ffffff !important;
+    background-color: transparent;
+    border-bottom: 2px solid #3498db !important;
+}
+
+.nav-tabs .nav-link:hover {
+    color: #ffffff !important;
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* Formularfelder */
+.form-control {
+    background-color: #2c3e50 !important;
+    border: 1px solid #4a5568 !important;
+    color: #ffffff !important;
+}
+
+.form-control:focus {
+    background-color: #34495e !important;
+    border-color: #ec7c1e !important;
+    box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25) !important;
+    color: #ffffff !important;
+}
+
+.form-control::placeholder {
+    color: #a0aec0 !important;
+    opacity: 0.8;
+}
+
+/* Textareas für Kommentare */
+textarea.form-control {
+    min-height: 100px;
+}
+
+/* Bug-Icon und spezielles Styling */
+.bug-icon {
+    color: #e74c3c !important; /* Rot für Bugs */
+}
+
+/* Status-Badges */
+.badge-status-open {
+    background-color: #3498db !important;
+    color: #ffffff !important;
+}
+
+.badge-status-closed,
+.badge-status-done {
+    background-color: #2ecc71 !important;
+    color: #ffffff !important;
+}
+
+/* Actionbuttons Erledigt/Löschen mit verbesserten Kontrasten */
+.btn-erledigt {
+    background-color: #e67e22 !important; /* Orange */
+    border-color: #e67e22 !important;
+    color: #ffffff !important;
+}
+
+.btn-loeschen {
+    background-color: #e74c3c !important; /* Rot */
+    border-color: #e74c3c !important;
+    color: #ffffff !important;
+}
+
+/* Buttons für Kommentare */
+.btn-kommentieren {
+    background-color: #ec7c1e !important;
+    border-color: #ec7c1e !important;
+    color: #ffffff !important;
+}
+
+/* Hinzufügen-Button im Brainstorming-Bereich */
+.btn-hinzufuegen {
+    background-color: #2ecc71 !important; /* Grün */
+    border-color: #2ecc71 !important;
+    color: #ffffff !important;
+    font-weight: 600;
+}
+
+/* Eingabefeld für neue Einträge */
+.brainstorming-input {
+    background-color: #2c3e50 !important;
+    border: 1px solid #4a5568 !important;
+    color: #ffffff !important;
+    padding: 0.75rem !important;
+}
+
+.brainstorming-input:focus {
+    background-color: #34495e !important;
+    border-color: #ec7c1e !important;
+}
+.chatMessages {
+    font-size: 0.9rem;
+    line-height: 1.4;
+}
+.chatMessages div {
+    padding: 0.5rem;
+    border-bottom: 1px solid red;
+}
+

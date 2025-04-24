@@ -1,0 +1,108 @@
+{"timestamp":"2025-04-22 10:04:14","level":"INFO","message":"🔄 Log geleert: fahrt_speichern_debug.log","ip":"82.144.38.202","session_id":"917802d3ef287d134ee9954ea26eeb56","uri":"/admin/log_viewer.php"}
+2025-04-23 11:11:25 - Fahrt speichern gestartet
+Array
+(
+    [csrf_token] => 8d2408ce6f7ea33b1b0fffb75b80ba87d4fffbc3a1fa346ba36b24dea15e31bd
+    [typ] => normal
+    [return] => fahrten_liste_fahrerabrechnung.php
+    [id] => 2
+    [kunde] => Modal Test
+    [kunde_id] => 54
+    [personenanzahl] => 8
+    [fahrtpreis] => 120.00
+    [zahlungsmethode] => 1
+    [rechnungsnummer] => 20250003
+    [abholdatum] => 22.04.2025
+    [abfahrtszeit] => 18:00
+    [abholort] => 11
+    [ziel] => 6
+    [flugnummer] => 
+    [fahrer] => 1
+    [fahrzeug] => 3
+    [dispo_bemerkung] => 
+    [zyklus_typ] => woechentlich
+    [zyklus_anzahl] => 4
+    [action] => save
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Gefilterte Daten
+Array
+(
+    [kunde_id] => 54
+    [abholdatum] => 22.04.2025
+    [abfahrtszeit] => 18:00
+    [fahrer] => 1
+    [fahrzeug] => 3
+    [abholort] => 11
+    [ziel] => 6
+    [zahlungsmethode] => 1
+    [flugnummer] => 
+    [fahrtpreis] => 120
+    [personenanzahl] => 8
+    [dispo_bemerkung] => 
+    [rechnungsnummer] => 20250003
+    [hinfahrt_id] => 
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Verarbeitete Daten
+Array
+(
+    [kunde_id] => 54
+    [abholdatum] => 2025-04-22
+    [abfahrtszeit] => 18:00
+    [fahrer] => 1
+    [fahrzeug] => 3
+    [abholort] => 11
+    [ziel] => 6
+    [zahlungsmethode] => 1
+    [flugnummer] => 
+    [fahrtpreis] => 120
+    [personenanzahl] => 8
+    [dispo_bemerkung] => 
+    [rechnungsnummer] => 20250003
+    [hinfahrt_id] => 
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Fahrt aktualisiert
+Array
+(
+    [id] => 2
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Prüfe, ob neue Fahrt früher als die früheste offene Fahrt des Fahrers ist
+Array
+(
+    [fahrt_id] => 2
+    [fahrt_datum] => 2025-04-22
+    [fahrer_id] => 1
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Frühestes offenes Datum des Fahrers
+Array
+(
+    [earliest_date] => 
+)
+
+--------------------------------------------------
+2025-04-23 11:11:25 - Neue Fahrt ist früher als die früheste offene Fahrt des Fahrers, bereite E-Mail vor
+--------------------------------------------------
+2025-04-23 11:11:26 - E-Mail erfolgreich mit mailer_config.php gesendet an
+Array
+(
+    [0] => hsiemers@ab-zum-flieger.de
+)
+
+--------------------------------------------------
+2025-04-23 11:11:26 - E-Mail-Benachrichtigung erfolgreich
+Array
+(
+    [success] => 1
+    [reason] => E-Mail erfolgreich gesendet
+)
+
+--------------------------------------------------

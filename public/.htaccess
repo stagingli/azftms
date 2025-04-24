@@ -1,0 +1,68 @@
+# Aktiviert mod_rewrite
+RewriteEngine On
+
+# --- 1) Verzeichniszugriff verhindern ---
+Options -Indexes
+
+# --- 2) Sichere Routing-Regeln ---
+# Spezifische Startseiten für Bereiche
+RewriteRule ^fahrer/?$ /fahrer/dashboard_fahrer.php [L]
+RewriteRule ^admin/?$ /admin/dashboard_admin.php [L]
+
+# --- 3) Verzeichniszugriff und Datei-Routing ---
+# Erlaube den Zugriff auf PHP-Dateien und Verzeichnisse
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^(.*\.php)$ $1 [L]
+
+# Fallback-Routing für nicht existierende Dateien
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
+
+# --- 4) Sicherheitseinstellungen ---
+# Schutz sensibler Dateien
+<FilesMatch "\.(htaccess|htpasswd|ini|log|conf|env|db)$">
+    Require all denied
+</FilesMatch>
+
+# --- 5) Sicherheits-Header ---
+# Schutz vor XSS
+Header set X-XSS-Protection "1; mode=block"
+
+# Keine Einbettung in iFrames
+Header always append X-Frame-Options SAMEORIGIN
+
+# Referrer-Policy
+Header set Referrer-Policy "strict-origin-when-cross-origin"
+
+# MIME-Typ-Sniffing verhindern
+Header set X-Content-Type-Options "nosniff"
+
+# --- 6) Fehler-Dokumente ---
+ErrorDocument 404 /404.html
+ErrorDocument 500 /500.html
+
+# --- 7) HTTPS erzwingen ---
+RewriteCond %{HTTPS} off
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# --- 8) Caching für statische Ressourcen ---
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType image/jpg "access plus 1 month"
+    ExpiresByType image/jpeg "access plus 1 month"
+    ExpiresByType image/png "access plus 1 month"
+    ExpiresByType image/gif "access plus 1 month"
+    ExpiresByType text/css "access plus 1 week"
+    ExpiresByType application/javascript "access plus 1 week"
+    ExpiresByType text/javascript "access plus 1 week"
+</IfModule>
+
+# --- 9) Robots blockieren ---
+Header set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet, noimageindex"
+
+# --- 10) Sicherheit für sensitive Dateien ---
+<FilesMatch "^(\.htaccess|\.env|config\.|configuration\.)">
+    Require all denied
+</FilesMatch>

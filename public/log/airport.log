@@ -1,0 +1,496 @@
+[2025-03-30 09:26:54] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-03-30
+    [to] => 2025-03-30
+    [flightNumber] => EW1744
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => EW1744
+    [cleaned] => EW1744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW 1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 218.52 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Keine Daten im ersten Versuch gefunden, versuche mit zwei Leerzeichen
+------------------------------------------------
+[2025-03-30 09:26:54] Zweiter Versuch mit zwei Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW  1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 134.2 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Keine Flugdaten gefunden
+Data: Array
+(
+    [flightNumber] => EW1744
+    [bothAttemptsFailed] => 1
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-03-30
+    [to] => 2025-03-30
+    [flightNumber] => EW7580
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => EW7580
+    [cleaned] => EW7580
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW 7580
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%207580
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%207580
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 112.72 ms
+    [curlError] => Keine
+    [responseLength] => 678
+    [responsePreview] => [
+  {
+    "plannedDepartureTime": "2025-03-30T06:00:00.000+02:00[Europe/Berlin]",
+    "viaAirport3LCode": null,
+    "viaAirportName": null,
+    "destinationAirport3LCode": "PMI",
+    "destinationAirportName": "Mallorca",
+    "destinationAirportLongName": "Palma de Mallorca",
+    "destinationAirportNameInt": "MALLORCA",
+    "destinationAirportLongNameInt": "PALMA DE MALLORCA",
+    "flightnumber": "EW 7580",
+    "departureTerminal": "1",
+    "expectedDepartureTime": null,
+    "flightS...
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Flugdaten im ersten Versuch gefunden
+Data: Array
+(
+    [flightNumber] => EW7580
+    [format] => Ein Leerzeichen
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Erfolgreiche Antwort generiert
+Data: Array
+(
+    [flightNumber] => EW7580
+    [responseSize] => 1472
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-05-12
+    [to] => 2025-05-12
+    [flightNumber] => LH13
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => LH13
+    [cleaned] => LH13
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => LH 13
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-12&to=2025-05-12&flightNumber=LH%2013
+)
+
+------------------------------------------------
+[2025-03-30 09:26:54] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-12&to=2025-05-12&flightNumber=LH%2013
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 400
+    [executionTime] => 106.55 ms
+    [curlError] => Keine
+    [responseLength] => 26
+    [responsePreview] => Wrong flight number format
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Daten im ersten Versuch gefunden, versuche mit zwei Leerzeichen
+------------------------------------------------
+[2025-03-30 09:26:55] Zweiter Versuch mit zwei Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => LH  13
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-12&to=2025-05-12&flightNumber=LH%20%2013
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-12&to=2025-05-12&flightNumber=LH%20%2013
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 400
+    [executionTime] => 122.75 ms
+    [curlError] => Keine
+    [responseLength] => 26
+    [responsePreview] => Wrong flight number format
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Flugdaten gefunden
+Data: Array
+(
+    [flightNumber] => LH13
+    [bothAttemptsFailed] => 1
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-05-14
+    [to] => 2025-05-14
+    [flightNumber] => LH13
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => LH13
+    [cleaned] => LH13
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => LH 13
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-14&to=2025-05-14&flightNumber=LH%2013
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-14&to=2025-05-14&flightNumber=LH%2013
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 400
+    [executionTime] => 114.98 ms
+    [curlError] => Keine
+    [responseLength] => 26
+    [responsePreview] => Wrong flight number format
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Daten im ersten Versuch gefunden, versuche mit zwei Leerzeichen
+------------------------------------------------
+[2025-03-30 09:26:55] Zweiter Versuch mit zwei Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => LH  13
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-14&to=2025-05-14&flightNumber=LH%20%2013
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-05-14&to=2025-05-14&flightNumber=LH%20%2013
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 400
+    [executionTime] => 109.29 ms
+    [curlError] => Keine
+    [responseLength] => 26
+    [responsePreview] => Wrong flight number format
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Flugdaten gefunden
+Data: Array
+(
+    [flightNumber] => LH13
+    [bothAttemptsFailed] => 1
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-03-30
+    [to] => 2025-03-30
+    [flightNumber] => EW1744
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => EW1744
+    [cleaned] => EW1744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW 1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 114.94 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Daten im ersten Versuch gefunden, versuche mit zwei Leerzeichen
+------------------------------------------------
+[2025-03-30 09:26:55] Zweiter Versuch mit zwei Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW  1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 109.03 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:26:55] Keine Flugdaten gefunden
+Data: Array
+(
+    [flightNumber] => EW1744
+    [bothAttemptsFailed] => 1
+)
+
+------------------------------------------------
+[2025-03-30 09:27:02] Neue Anfrage empfangen
+Data: Array
+(
+    [type] => departures
+    [from] => 2025-03-30
+    [to] => 2025-03-30
+    [flightNumber] => EW1744
+    [userIP] => 93.234.150.247
+    [userAgent] => Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36
+)
+
+------------------------------------------------
+[2025-03-30 09:27:02] Flugnummer verarbeiten
+Data: Array
+(
+    [original] => EW1744
+    [cleaned] => EW1744
+)
+
+------------------------------------------------
+[2025-03-30 09:27:02] Erster Versuch mit einem Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW 1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:27:02] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:27:03] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 154.4 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:27:03] Keine Daten im ersten Versuch gefunden, versuche mit zwei Leerzeichen
+------------------------------------------------
+[2025-03-30 09:27:03] Zweiter Versuch mit zwei Leerzeichen
+Data: Array
+(
+    [formattedFlightNumber] => EW  1744
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+)
+
+------------------------------------------------
+[2025-03-30 09:27:03] API-Anfrage gesendet
+Data: Array
+(
+    [url] => https://rest.api.hamburg-airport.de/v2/flights/departures?from=2025-03-30&to=2025-03-30&flightNumber=EW%20%201744
+    [method] => GET
+)
+
+------------------------------------------------
+[2025-03-30 09:27:03] API-Antwort erhalten
+Data: Array
+(
+    [httpCode] => 200
+    [executionTime] => 115.36 ms
+    [curlError] => Keine
+    [responseLength] => 2
+    [responsePreview] => []
+)
+
+------------------------------------------------
+[2025-03-30 09:27:03] Keine Flugdaten gefunden
+Data: Array
+(
+    [flightNumber] => EW1744
+    [bothAttemptsFailed] => 1
+)
+
+------------------------------------------------
